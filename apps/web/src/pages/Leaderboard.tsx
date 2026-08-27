@@ -31,9 +31,10 @@ export default function Leaderboard() {
           {entries.map((entry, i) => (
             <li
               key={entry.uid}
-              className={`flex items-center justify-between rounded-xl border p-4 ${
-                entry.display_name === profile?.display_name ? "bg-primary/10 border-primary" : "bg-card"
+              className={`glass-panel flex items-center justify-between p-4 fade-in-up ${
+                entry.display_name === profile?.display_name ? "border-primary" : ""
               }`}
+              style={{ animationDelay: `${i * 40}ms`, borderRadius: "var(--radius-lg)" }}
             >
               <div className="flex items-center gap-3">
                 <span className="w-8 text-center font-display text-lg">{MEDALS[i] ?? i + 1}</span>

@@ -25,8 +25,8 @@ export default function HowToPlay() {
       <section className="space-y-4">
         <h2 className="font-display text-lg">ثلاث خطوات</h2>
         {STEPS.map((step, i) => (
-          <div key={step.title} className="flex gap-4 items-start rounded-xl bg-card border p-4">
-            <span className="font-display text-2xl text-primary">{i + 1}</span>
+          <div key={step.title} className="glass-panel flex gap-4 items-start p-4 fade-in-up" style={{ animationDelay: `${i * 60}ms` }}>
+            <span className="font-display text-2xl glow-text text-primary">{i + 1}</span>
             <div>
               <p className="font-bold">{step.title}</p>
               <p className="text-sm text-muted-foreground">{step.body}</p>
@@ -37,15 +37,15 @@ export default function HowToPlay() {
 
       <section className="space-y-4">
         <h2 className="font-display text-lg">الألعاب المتاحة</h2>
-        {GAMES.map((game) => (
-          <div key={game.name} className="rounded-xl bg-card border p-4">
+        {GAMES.map((game, i) => (
+          <div key={game.name} className="glass-panel p-4 fade-in-up" style={{ animationDelay: `${i * 60}ms` }}>
             <p className="font-bold">{game.name}</p>
             <p className="text-sm text-muted-foreground">{game.desc}</p>
           </div>
         ))}
       </section>
 
-      <section className="rounded-xl bg-card border p-4 space-y-2">
+      <section className="glass-panel p-4 space-y-2">
         <h2 className="font-display text-lg">مباراة رسمية</h2>
         <p className="text-sm text-muted-foreground">
           أنشئ مباراة بين فريقين واحصل على رابط/رمز QR خاص بالحكم لتحكيم النتيجة، ورابط منفصل للمشاهدين لمتابعة النتيجة لحظياً.

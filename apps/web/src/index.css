@@ -10,11 +10,16 @@ body {
   font-family: "IBM Plex Sans Arabic", system-ui, -apple-system, sans-serif;
   -webkit-font-smoothing: antialiased;
   direction: rtl;
+  overflow-x: hidden;
 }
 
 @layer base {
   :root {
     --radius: 0.75rem;
+    --radius-lg: 1.25rem;
+    --transition-fast: 0.15s ease;
+    --transition-normal: 0.3s ease;
+
     --background: 258 30% 8%;
     --foreground: 260 20% 96%;
     --card: 258 25% 12%;
@@ -31,9 +36,96 @@ body {
     --destructive-foreground: 0 0% 100%;
     --border: 258 20% 22%;
     --ring: 262 83% 66%;
+
+    --glass-bg: 258 25% 100% / 0.04;
+    --glass-bg-hover: 258 25% 100% / 0.07;
+    --glass-border: 258 20% 100% / 0.09;
+    --glass-border-hover: 258 20% 100% / 0.16;
+    --glow-primary: 262 83% 66%;
+    --glow-accent: 32 95% 58%;
+
+    --grad-primary: linear-gradient(135deg, hsl(262 83% 66%) 0%, hsl(280 70% 52%) 100%);
+    --grad-accent: linear-gradient(135deg, hsl(32 95% 58%) 0%, hsl(14 90% 55%) 100%);
+    --grad-success: linear-gradient(135deg, hsl(158 64% 42%) 0%, hsl(174 60% 38%) 100%);
+    --grad-live: linear-gradient(135deg, hsl(340 82% 58%) 0%, hsl(188 80% 50%) 100%);
   }
+
   * { border-color: hsl(var(--border)); }
-  body { background-color: hsl(var(--background)); color: hsl(var(--foreground)); }
+  body { background: radial-gradient(circle at 50% 0%, hsl(258 30% 12%) 0%, hsl(var(--background)) 60%); color: hsl(var(--foreground)); }
 }
 
 .font-display { font-weight: 800; letter-spacing: -0.01em; }
+
+/* --- Glassmorphism panel, used for cards and game-state boxes --- */
+.glass-panel {
+  background: hsl(var(--glass-bg));
+  border: 1px solid hsl(var(--glass-border));
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35);
+  transition: background var(--transition-normal), border-color var(--transition-normal);
+}
+.glass-panel:hover {
+  background: hsl(var(--glass-bg-hover));
+  border-color: hsl(var(--glass-border-hover));
+}
+
+/* --- Gradient buttons with a matching glow, pressed feedback on click --- */
+.btn-glow {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  font-weight: 700;
+  border: none;
+  cursor: pointer;
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast), filter var(--transition-fast);
+}
+.btn-glow:active { transform: scale(0.97); }
+.btn-glow:disabled { opacity: 0.6; cursor: not-allowed; }
+
+.btn-glow-primary { background: var(--grad-primary); color: white; box-shadow: 0 4px 18px hsl(var(--glow-primary) / 0.35); }
+.btn-glow-primary:hover:not(:disabled) { box-shadow: 0 6px 24px hsl(var(--glow-primary) / 0.55); filter: brightness(1.06); }
+
+.btn-glow-accent { background: var(--grad-accent); color: white; box-shadow: 0 4px 18px hsl(var(--glow-accent) / 0.35); }
+.btn-glow-accent:hover:not(:disabled) { box-shadow: 0 6px 24px hsl(var(--glow-accent) / 0.55); filter: brightness(1.06); }
+
+.btn-glow-success { background: var(--grad-success); color: white; box-shadow: 0 4px 18px hsl(158 64% 42% / 0.35); }
+.btn-glow-success:hover:not(:disabled) { box-shadow: 0 6px 24px hsl(158 64% 42% / 0.55); filter: brightness(1.06); }
+
+.btn-glow-live { background: var(--grad-live); color: white; box-shadow: 0 4px 18px hsl(340 82% 58% / 0.35); }
+.btn-glow-live:hover:not(:disabled) { box-shadow: 0 6px 24px hsl(340 82% 58% / 0.55); filter: brightness(1.06); }
+
+/* --- Badge chips --- */
+.badge-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+}
+
+/* --- Glow text for headline highlights --- */
+.glow-text { text-shadow: 0 0 20px hsl(var(--glow-primary) / 0.45); }
+
+/* --- Scroll-reveal + pulse utilities --- */
+@keyframes fade-in-up {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.fade-in-up { animation: fade-in-up 0.5s ease both; }
+
+@keyframes soft-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 hsl(var(--glow-accent) / 0.4); }
+  50% { box-shadow: 0 0 0 8px hsl(var(--glow-accent) / 0); }
+}
+.pulse-ring { animation: soft-pulse 2s ease-in-out infinite; }
+
+/* --- Custom scrollbar to match the theme --- */
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: hsl(var(--primary) / 0.35); border-radius: 8px; }
+::-webkit-scrollbar-thumb:hover { background: hsl(var(--primary) / 0.6); }

@@ -47,20 +47,20 @@ export default function Match() {
 
       <div className="grid grid-cols-2 gap-6">
         {TEAM_KEYS.map((key, i) => (
-          <div key={key} className="rounded-2xl bg-card border p-6 space-y-3">
+          <div key={key} className="glass-panel p-6 space-y-3 fade-in-up" style={{ animationDelay: `${i * 80}ms` }}>
             <p className="font-bold text-lg">{match.teams[i]}</p>
-            <p className="font-display text-5xl">{match.scores[key]}</p>
+            <p className="font-display text-5xl glow-text text-primary">{match.scores[key]}</p>
             {canControl && (
               <div className="flex justify-center gap-2">
                 <button
                   onClick={() => adjustScore(match.id, key, 1)}
-                  className="w-9 h-9 rounded-lg bg-primary text-primary-foreground font-bold"
+                  className="btn-glow btn-glow-success w-9 h-9 rounded-lg"
                 >
                   +
                 </button>
                 <button
                   onClick={() => adjustScore(match.id, key, -1)}
-                  className="w-9 h-9 rounded-lg bg-secondary font-bold"
+                  className="w-9 h-9 rounded-lg bg-secondary hover:bg-secondary/70 transition-colors font-bold"
                 >
                   −
                 </button>
@@ -74,7 +74,7 @@ export default function Match() {
         <div className="grid grid-cols-2 gap-6 pt-2">
           <div className="space-y-2">
             <p className="text-sm text-muted-foreground">رابط الحكم</p>
-            <div className="bg-white p-3 rounded-xl inline-block">
+            <div className="bg-white p-3 rounded-xl inline-block shadow-lg">
               <QRCodeSVG value={refereeLink} size={128} />
             </div>
             <p className="text-xs break-all text-muted-foreground">{refereeLink}</p>
@@ -96,12 +96,14 @@ export default function Match() {
       {isReferee && <p className="text-accent font-bold">أنت الحكم في هذه المباراة</p>}
 
       {isHost && match.status === "active" && (
-        <button onClick={() => endMatch(match.id)} className="px-6 py-2 rounded-lg bg-destructive text-destructive-foreground font-bold">
+        <button onClick={() => endMatch(match.id)} className="btn-glow px-6 py-2 rounded-lg" style={{ background: "hsl(var(--destructive))", color: "hsl(var(--destructive-foreground))" }}>
           إنهاء المباراة
         </button>
       )}
       {match.status === "ended" && (
-        <p className="font-display text-xl text-accent">🏆 انتهت المباراة — {winner ? `الفائز: ${winner}` : "تعادل"}</p>
+        <p className="font-display text-xl text-accent pulse-ring inline-block rounded-full px-4 py-1">
+          🏆 انتهت المباراة — {winner ? `الفائز: ${winner}` : "تعادل"}
+        </p>
       )}
     </div>
   );

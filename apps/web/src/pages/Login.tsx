@@ -26,7 +26,7 @@ export default function Login() {
 
   return (
     <div className="min-h-screen grid place-items-center px-4">
-      <div className="w-full max-w-sm space-y-6">
+      <div className="w-full max-w-sm glass-panel p-8 space-y-6 fade-in-up">
         <h1 className="font-display text-2xl text-center">أهلاً بعودتك</h1>
         {error && <p className="text-destructive text-sm text-center">{error}</p>}
         <form onSubmit={submit} className="space-y-3">
@@ -36,7 +36,7 @@ export default function Login() {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
-            className="w-full h-11 rounded-lg bg-card border px-3 outline-none focus:ring-2 focus:ring-ring"
+            className="w-full h-11 rounded-lg bg-background/60 border px-3 outline-none focus:ring-2 focus:ring-ring transition-shadow"
           />
           <input
             type="password"
@@ -44,20 +44,20 @@ export default function Login() {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
-            className="w-full h-11 rounded-lg bg-card border px-3 outline-none focus:ring-2 focus:ring-ring"
+            className="w-full h-11 rounded-lg bg-background/60 border px-3 outline-none focus:ring-2 focus:ring-ring transition-shadow"
           />
-          <button type="submit" disabled={busy} className="w-full h-11 rounded-lg bg-primary text-primary-foreground font-bold">
+          <button type="submit" disabled={busy} className="btn-glow btn-glow-primary w-full h-11 rounded-lg">
             {busy ? "جاري الدخول..." : "دخول"}
           </button>
         </form>
         <button
           onClick={() => loginWithGoogle().then(() => nav("/home"))}
-          className="w-full h-11 rounded-lg bg-secondary font-bold"
+          className="w-full h-11 rounded-lg bg-secondary hover:bg-secondary/70 transition-colors font-bold"
         >
           الدخول بحساب Google
         </button>
         <p className="text-center text-sm text-muted-foreground">
-          ما عندك حساب؟ <Link to="/register" className="text-primary font-bold">أنشئ واحد</Link>
+          ما عندك حساب؟ <Link to="/register" className="text-primary font-bold hover:underline">أنشئ واحد</Link>
         </p>
       </div>
     </div>

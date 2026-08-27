@@ -184,9 +184,9 @@ export default function Room() {
 
   return (
     <div className="min-h-screen max-w-2xl mx-auto px-4 py-8 space-y-6">
-      <header className="text-center space-y-1">
+      <header className="text-center space-y-1 fade-in-up">
         <p className="text-muted-foreground text-sm">كود الغرفة</p>
-        <p className="font-display text-4xl tracking-widest">{room?.code ?? "..."}</p>
+        <p className="font-display text-4xl tracking-widest glow-text text-primary">{room?.code ?? "..."}</p>
         {isLive ? (
           <p className="text-xs text-muted-foreground">{STATUS_LABELS[liveStatus] ?? liveStatus} — {room?.platform}</p>
         ) : (
@@ -195,26 +195,26 @@ export default function Room() {
       </header>
 
       {(!state.gameId || state.phase === "LOBBY") && (
-        <div className="rounded-2xl bg-card border p-6 text-center space-y-4">
+        <div className="glass-panel p-6 text-center space-y-4 fade-in-up">
           {isHost ? (
             <>
               <h2 className="font-display text-lg">اختر لعبة</h2>
               <div className="flex flex-wrap gap-3 justify-center">
-                <button onClick={startClosestGuess} className="px-5 py-2.5 rounded-lg bg-primary text-primary-foreground font-bold">
+                <button onClick={startClosestGuess} className="btn-glow btn-glow-primary px-5 py-2.5 rounded-lg">
                   خمّن الرقم
                 </button>
-                <button onClick={startAccumulationRace} className="px-5 py-2.5 rounded-lg bg-accent text-accent-foreground font-bold">
+                <button onClick={startAccumulationRace} className="btn-glow btn-glow-accent px-5 py-2.5 rounded-lg">
                   تسلّق الجبل
                 </button>
-                <button onClick={startAudiencePoll} className="px-5 py-2.5 rounded-lg bg-secondary font-bold">
+                <button onClick={startAudiencePoll} className="btn-glow btn-glow-success px-5 py-2.5 rounded-lg">
                   تصويت الجمهور
                 </button>
                 {!isLive && (
                   <>
-                    <button onClick={startLastOneStanding} className="px-5 py-2.5 rounded-lg bg-secondary font-bold">
+                    <button onClick={startLastOneStanding} className="btn-glow btn-glow-live px-5 py-2.5 rounded-lg">
                       آخر واحد
                     </button>
-                    <button onClick={startButterflyCage} className="px-5 py-2.5 rounded-lg bg-secondary font-bold">
+                    <button onClick={startButterflyCage} className="btn-glow btn-glow-live px-5 py-2.5 rounded-lg">
                       قفص الفراشات 🦋
                     </button>
                   </>
@@ -228,9 +228,11 @@ export default function Room() {
       )}
 
       {instruction && state.phase !== "LOBBY" && (
-        <div className="rounded-2xl bg-card border p-6 text-center space-y-3">
+        <div className="glass-panel p-6 text-center space-y-3 fade-in-up">
           <p className="text-xl font-bold">{instruction}</p>
-          {secondsLeft > 0 && <p className="text-3xl font-display text-primary">{secondsLeft}</p>}
+          {secondsLeft > 0 && (
+            <p className={`text-3xl font-display text-primary ${secondsLeft <= 5 ? "text-destructive" : ""}`}>{secondsLeft}</p>
+          )}
 
           {state.phase === "REVEAL" && (
             <div className="space-y-2 pt-2">
@@ -258,11 +260,13 @@ export default function Room() {
           )}
 
           {isTerminalPhase && (
-            <p className="text-accent font-bold text-lg">🏆 الفائز: {scoreLabel(state.winner || "")}</p>
+            <p className="text-accent font-bold text-lg pulse-ring inline-block rounded-full px-4 py-1">
+              🏆 الفائز: {scoreLabel(state.winner || "")}
+            </p>
           )}
 
           {isHost && isTerminalPhase && (
-            <button onClick={resetToLobby} className="px-5 py-2 rounded-lg bg-secondary font-bold">
+            <button onClick={resetToLobby} className="btn-glow btn-glow-primary px-5 py-2 rounded-lg">
               لعبة جديدة
             </button>
           )}
@@ -275,9 +279,9 @@ export default function Room() {
             value={message}
             onChange={(e) => setMessage(e.target.value)}
             placeholder="اكتب رسالتك هنا..."
-            className="flex-1 h-11 rounded-lg bg-card border px-3 outline-none focus:ring-2 focus:ring-ring"
+            className="flex-1 h-11 rounded-lg bg-card border px-3 outline-none focus:ring-2 focus:ring-ring transition-shadow"
           />
-          <button type="submit" className="px-5 h-11 rounded-lg bg-primary text-primary-foreground font-bold">
+          <button type="submit" className="btn-glow btn-glow-primary px-5 h-11 rounded-lg">
             إرسال
           </button>
         </form>

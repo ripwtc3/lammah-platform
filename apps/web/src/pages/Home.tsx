@@ -91,15 +91,15 @@ export default function Home() {
       </header>
 
       <main className="max-w-3xl mx-auto px-4 py-12 space-y-6">
-        <div className="rounded-2xl bg-card border p-6 text-center space-y-4">
+        <div className="glass-panel p-6 text-center space-y-4 fade-in-up">
           <h2 className="font-display text-xl">أنشئ غرفة محلية</h2>
           <p className="text-sm text-muted-foreground">شارك الكود مع أصحابك وابدأوا اللعب من نفس الغرفة</p>
-          <button onClick={onCreateLocal} disabled={busy} className="px-6 py-2.5 rounded-lg bg-primary text-primary-foreground font-bold">
+          <button onClick={onCreateLocal} disabled={busy} className="btn-glow btn-glow-primary px-6 py-2.5 rounded-lg">
             إنشاء غرفة محلية
           </button>
         </div>
 
-        <div className="rounded-2xl bg-card border p-6 space-y-4">
+        <div className="glass-panel p-6 space-y-4 fade-in-up" style={{ animationDelay: "80ms" }}>
           <button onClick={() => setLiveOpen((v) => !v)} className="w-full font-display text-xl text-center">
             🔴 غرفة بث مباشر {liveOpen ? "▲" : "▼"}
           </button>
@@ -111,7 +111,7 @@ export default function Home() {
                     key={p.id}
                     type="button"
                     onClick={() => setPlatform(p.id)}
-                    className={`px-4 py-2 rounded-lg text-sm font-bold ${platform === p.id ? "bg-primary text-primary-foreground" : "bg-secondary"}`}
+                    className={`px-4 py-2 rounded-lg text-sm font-bold transition-colors ${platform === p.id ? "btn-glow btn-glow-live" : "bg-secondary hover:bg-secondary/70"}`}
                   >
                     {p.label}
                   </button>
@@ -145,14 +145,14 @@ export default function Home() {
                 />
               )}
 
-              <button type="submit" disabled={busy} className="w-full h-11 rounded-lg bg-primary text-primary-foreground font-bold">
+              <button type="submit" disabled={busy} className="btn-glow btn-glow-live w-full h-11 rounded-lg">
                 ربط والبدء
               </button>
             </form>
           )}
         </div>
 
-        <div className="rounded-2xl bg-card border p-6 space-y-4">
+        <div className="glass-panel p-6 space-y-4 fade-in-up" style={{ animationDelay: "160ms" }}>
           <button onClick={() => setMatchOpen((v) => !v)} className="w-full font-display text-xl text-center">
             🏆 مباراة رسمية {matchOpen ? "▲" : "▼"}
           </button>
@@ -181,14 +181,14 @@ export default function Home() {
                   className="h-11 rounded-lg bg-background border px-3 outline-none focus:ring-2 focus:ring-ring"
                 />
               </div>
-              <button type="submit" disabled={busy} className="w-full h-11 rounded-lg bg-primary text-primary-foreground font-bold">
+              <button type="submit" disabled={busy} className="btn-glow btn-glow-accent w-full h-11 rounded-lg">
                 إنشاء المباراة
               </button>
             </form>
           )}
         </div>
 
-        <div className="rounded-2xl bg-card border p-6 space-y-4">
+        <div className="glass-panel p-6 space-y-4 fade-in-up" style={{ animationDelay: "240ms" }}>
           <h2 className="font-display text-xl text-center">انضم بكود</h2>
           {error && <p className="text-destructive text-sm text-center">{error}</p>}
           <form onSubmit={onJoin} className="flex gap-2 justify-center">
@@ -199,7 +199,7 @@ export default function Home() {
               maxLength={5}
               className="w-32 h-11 text-center tracking-widest rounded-lg bg-background border px-3 outline-none focus:ring-2 focus:ring-ring"
             />
-            <button type="submit" disabled={busy || joinCode.length < 5} className="px-5 h-11 rounded-lg bg-secondary font-bold">
+            <button type="submit" disabled={busy || joinCode.length < 5} className="btn-glow btn-glow-success px-5 h-11 rounded-lg">
               انضمام
             </button>
           </form>
