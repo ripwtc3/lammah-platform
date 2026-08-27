@@ -10,7 +10,15 @@ import { subscribeRoomState, writeRoomState, type RoomState, EMPTY_ROOM_STATE } 
 import { runPatternGame } from "@/engine/patternEngine";
 import { closestGuessPattern, CLOSEST_GUESS_ID, CLOSEST_GUESS_INSTRUCTION } from "@/patterns/closestGuess";
 import { accumulationRacePattern, ACCUMULATION_RACE_ID, ACCUMULATION_RACE_INSTRUCTION } from "@/patterns/accumulationRace";
-import { startLastOneStandingGame, LAST_ONE_STANDING_ID, LAST_ONE_STANDING_INSTRUCTION } from "@/games/lastOneStanding/engine";
+import { createAudiencePoll, AUDIENCE_POLL_ID, AUDIENCE_POLL_INSTRUCTION } from "@/patterns/audiencePoll";
+import {
+  startLastOneStandingGame,
+  startButterflyCageGame,
+  LAST_ONE_STANDING_ID,
+  LAST_ONE_STANDING_INSTRUCTION,
+  BUTTERFLY_CAGE_ID,
+  BUTTERFLY_CAGE_INSTRUCTION,
+} from "@/games/lastOneStanding/engine";
 
 const STATUS_LABELS: Record<string, string> = {
   connecting: "جاري الاتصال...",
@@ -24,8 +32,12 @@ const STATUS_LABELS: Record<string, string> = {
 const INSTRUCTIONS: Record<string, string> = {
   [CLOSEST_GUESS_ID]: CLOSEST_GUESS_INSTRUCTION,
   [ACCUMULATION_RACE_ID]: ACCUMULATION_RACE_INSTRUCTION,
+  [AUDIENCE_POLL_ID]: AUDIENCE_POLL_INSTRUCTION,
   [LAST_ONE_STANDING_ID]: LAST_ONE_STANDING_INSTRUCTION,
+  [BUTTERFLY_CAGE_ID]: BUTTERFLY_CAGE_INSTRUCTION,
 };
+
+const ELIMINATION_GAME_IDS = new Set([LAST_ONE_STANDING_ID, BUTTERFLY_CAGE_ID]);
 
 function prettyName(userKey: string): string {
   const parts = userKey.split(":");
@@ -108,7 +120,7 @@ export default function Room() {
 
   const players = state.players || {};
   const eliminatedNames = useMemo(() => {
-    if (state.gameId !== LAST_ONE_STANDING_ID) return [];
+    if (!ELIMINATION_GAME_IDS.has(state.gameId)) return [];
     return Object.values(players)
       .filter((p) => !p.alive)
       .map((p) => p.nickname);
@@ -129,10 +141,29 @@ export default function Room() {
     setStopGame(() => runPatternGame(roomId, accumulationRacePattern, (state.round || 0) + 1));
   };
 
+  const rosterOrSelf = () =>
+    participants.length > 0 ? participants : [{ userKey: user.uid, displayName: profile?.display_name || "لاعب", role: "host" }];
+
   const startLastOneStanding = () => {
     stopGame?.();
-    const roster = participants.length > 0 ? participants : [{ userKey: user.uid, displayName: profile?.display_name || "لاعب", role: "host" }];
-    setStopGame(() => startLastOneStandingGame(roomId, roster));
+    setStopGame(() => startLastOneStandingGame(roomId, rosterOrSelf()));
+  };
+
+  const startButterflyCage = () => {
+    stopGame?.();
+    setStopGame(() => startButterflyCageGame(roomId, rosterOrSelf()));
+  };
+
+  const startAudiencePoll = () => {
+    const raw = window.prompt("أدخل الخيارات مفصولة بفاصلة (مثال: أحمد,سارة,خالد)");
+    if (!raw) return;
+    const candidates = raw.split(",").map((c) => c.trim()).filter(Boolean);
+    if (candidates.length < 2) {
+      window.alert("أدخل خيارين على الأقل");
+      return;
+    }
+    stopGame?.();
+    setStopGame(() => runPatternGame(roomId, createAudiencePoll(candidates), (state.round || 0) + 1));
   };
 
   const resetToLobby = async () => {
@@ -149,7 +180,7 @@ export default function Room() {
   };
 
   const instruction = INSTRUCTIONS[state.gameId] ?? null;
-  const isTerminalPhase = state.phase === "WINNER" || state.phase === "FINISHED";
+  const isTerminalPhase = state.phase === "WINNER" || state.phase === "FINISHED" || state.phase === "RESULT";
 
   return (
     <div className="min-h-screen max-w-2xl mx-auto px-4 py-8 space-y-6">
@@ -168,17 +199,25 @@ export default function Room() {
           {isHost ? (
             <>
               <h2 className="font-display text-lg">اختر لعبة</h2>
-              <div className="flex flex-col sm:flex-row gap-3 justify-center">
+              <div className="flex flex-wrap gap-3 justify-center">
                 <button onClick={startClosestGuess} className="px-5 py-2.5 rounded-lg bg-primary text-primary-foreground font-bold">
                   خمّن الرقم
                 </button>
                 <button onClick={startAccumulationRace} className="px-5 py-2.5 rounded-lg bg-accent text-accent-foreground font-bold">
                   تسلّق الجبل
                 </button>
+                <button onClick={startAudiencePoll} className="px-5 py-2.5 rounded-lg bg-secondary font-bold">
+                  تصويت الجمهور
+                </button>
                 {!isLive && (
-                  <button onClick={startLastOneStanding} className="px-5 py-2.5 rounded-lg bg-secondary font-bold">
-                    آخر واحد
-                  </button>
+                  <>
+                    <button onClick={startLastOneStanding} className="px-5 py-2.5 rounded-lg bg-secondary font-bold">
+                      آخر واحد
+                    </button>
+                    <button onClick={startButterflyCage} className="px-5 py-2.5 rounded-lg bg-secondary font-bold">
+                      قفص الفراشات 🦋
+                    </button>
+                  </>
                 )}
               </div>
             </>
@@ -197,6 +236,18 @@ export default function Room() {
             <div className="space-y-2 pt-2">
               <p className="text-muted-foreground">الرقم السري: <span className="text-foreground font-bold">{state.target}</span></p>
               {state.winner && <p className="text-accent font-bold">الفائز: {scoreLabel(state.winner)}</p>}
+            </div>
+          )}
+
+          {state.gameId === AUDIENCE_POLL_ID && state.tally && (
+            <div className="space-y-1 pt-2">
+              {Object.entries(state.tally)
+                .sort(([, a], [, b]) => b - a)
+                .map(([candidate, count]) => (
+                  <p key={candidate} className={candidate === state.winner ? "text-accent font-bold" : "text-muted-foreground"}>
+                    {candidate}: {count} صوت
+                  </p>
+                ))}
             </div>
           )}
 

@@ -20,6 +20,8 @@ export interface GameState {
   target?: number | string | null;
   endsAt?: number | null;
   winner?: string | null;
+  /** Vote tallies keyed by candidate label — only used by poll-style patterns. */
+  tally?: Record<string, number> | null;
 }
 
 export const EMPTY_GAME_STATE: GameState = {

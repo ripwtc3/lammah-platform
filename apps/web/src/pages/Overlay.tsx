@@ -3,12 +3,20 @@ import { useParams } from "react-router-dom";
 import { subscribeRoomState, EMPTY_ROOM_STATE, type RoomState } from "@/lib/roomState";
 import { CLOSEST_GUESS_ID, CLOSEST_GUESS_INSTRUCTION } from "@/patterns/closestGuess";
 import { ACCUMULATION_RACE_ID, ACCUMULATION_RACE_INSTRUCTION } from "@/patterns/accumulationRace";
-import { LAST_ONE_STANDING_ID, LAST_ONE_STANDING_INSTRUCTION } from "@/games/lastOneStanding/engine";
+import { AUDIENCE_POLL_ID, AUDIENCE_POLL_INSTRUCTION } from "@/patterns/audiencePoll";
+import {
+  LAST_ONE_STANDING_ID,
+  LAST_ONE_STANDING_INSTRUCTION,
+  BUTTERFLY_CAGE_ID,
+  BUTTERFLY_CAGE_INSTRUCTION,
+} from "@/games/lastOneStanding/engine";
 
 const INSTRUCTIONS: Record<string, string> = {
   [CLOSEST_GUESS_ID]: CLOSEST_GUESS_INSTRUCTION,
   [ACCUMULATION_RACE_ID]: ACCUMULATION_RACE_INSTRUCTION,
+  [AUDIENCE_POLL_ID]: AUDIENCE_POLL_INSTRUCTION,
   [LAST_ONE_STANDING_ID]: LAST_ONE_STANDING_INSTRUCTION,
+  [BUTTERFLY_CAGE_ID]: BUTTERFLY_CAGE_INSTRUCTION,
 };
 
 /** Read-only, transparent-background view for OBS Browser Source capture. No auth. */
@@ -33,7 +41,7 @@ export default function Overlay() {
   }, [roomId]);
 
   const instruction = INSTRUCTIONS[state.gameId] ?? null;
-  const isTerminalPhase = state.phase === "WINNER" || state.phase === "FINISHED";
+  const isTerminalPhase = state.phase === "WINNER" || state.phase === "FINISHED" || state.phase === "RESULT";
 
   return (
     <div className="min-h-screen bg-transparent flex items-center justify-center p-8">
