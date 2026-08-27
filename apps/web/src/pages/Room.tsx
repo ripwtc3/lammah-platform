@@ -7,7 +7,9 @@ import { startTwitchAdapter } from "@/adapters/twitchAdapter";
 import { startYoutubeAdapter } from "@/adapters/youtubeAdapter";
 import { startTiktokAdapter } from "@/adapters/tiktokAdapter";
 import { subscribeRoomState, writeRoomState, type RoomState, EMPTY_ROOM_STATE } from "@/lib/roomState";
-import { startGuessNumberRound, GUESS_NUMBER_ID, GUESS_NUMBER_INSTRUCTION } from "@/games/guessNumber/engine";
+import { runPatternGame } from "@/engine/patternEngine";
+import { closestGuessPattern, CLOSEST_GUESS_ID, CLOSEST_GUESS_INSTRUCTION } from "@/patterns/closestGuess";
+import { accumulationRacePattern, ACCUMULATION_RACE_ID, ACCUMULATION_RACE_INSTRUCTION } from "@/patterns/accumulationRace";
 import { startLastOneStandingGame, LAST_ONE_STANDING_ID, LAST_ONE_STANDING_INSTRUCTION } from "@/games/lastOneStanding/engine";
 
 const STATUS_LABELS: Record<string, string> = {
@@ -19,12 +21,18 @@ const STATUS_LABELS: Record<string, string> = {
   error: "خطأ بالاتصال",
 };
 
+const INSTRUCTIONS: Record<string, string> = {
+  [CLOSEST_GUESS_ID]: CLOSEST_GUESS_INSTRUCTION,
+  [ACCUMULATION_RACE_ID]: ACCUMULATION_RACE_INSTRUCTION,
+  [LAST_ONE_STANDING_ID]: LAST_ONE_STANDING_INSTRUCTION,
+};
+
 function prettyName(userKey: string): string {
   const parts = userKey.split(":");
   return parts.length > 1 ? parts[1] : userKey;
 }
 
-function useCountdown(endsAt?: number) {
+function useCountdown(endsAt?: number | null) {
   const [secondsLeft, setSecondsLeft] = useState(0);
   useEffect(() => {
     if (!endsAt) {
@@ -53,7 +61,6 @@ export default function Room() {
   const isLive = room?.mode === "live";
   const secondsLeft = useCountdown(state.endsAt);
 
-  // Load the room doc once and join as a participant if this user isn't the host.
   useEffect(() => {
     if (!roomId || !user) return;
     let cancelled = false;
@@ -71,7 +78,6 @@ export default function Room() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [roomId, user?.uid]);
 
-  // Participants + shared game state are always live regardless of source.
   useEffect(() => {
     if (!roomId) return;
     const unsubParticipants = subscribeParticipants(roomId, setParticipants);
@@ -82,15 +88,12 @@ export default function Room() {
     };
   }, [roomId]);
 
-  // Once we know the room's mode/platform, wire the matching chat source into the EventBus.
   useEffect(() => {
     if (!roomId || !room) return;
 
     if (room.mode === "local") {
-      const unsub = startLocalAdapter(roomId);
-      return unsub;
+      return startLocalAdapter(roomId);
     }
-
     if (room.platform === "twitch" && room.platformConfig?.channel) {
       return startTwitchAdapter(roomId, room.platformConfig.channel, setLiveStatus);
     }
@@ -103,33 +106,39 @@ export default function Room() {
     return undefined;
   }, [roomId, room]);
 
+  const players = state.players || {};
   const eliminatedNames = useMemo(() => {
     if (state.gameId !== LAST_ONE_STANDING_ID) return [];
-    const remainingSet = new Set(state.remaining);
-    return participants.filter((p) => !remainingSet.has(p.userKey)).map((p) => p.displayName);
-  }, [participants, state]);
+    return Object.values(players)
+      .filter((p) => !p.alive)
+      .map((p) => p.nickname);
+  }, [players, state.gameId]);
 
-  const scoreLabel = (uid: string) => participants.find((p) => p.userKey === uid)?.displayName ?? prettyName(uid);
+  const scoreLabel = (uid: string) =>
+    players[uid]?.nickname ?? participants.find((p) => p.userKey === uid)?.displayName ?? prettyName(uid);
 
   if (!roomId || !user) return null;
 
-  const startGuessNumber = () => {
+  const startClosestGuess = () => {
     stopGame?.();
-    const stop = startGuessNumberRound(roomId, (state.round || 0) + 1);
-    setStopGame(() => stop);
+    setStopGame(() => runPatternGame(roomId, closestGuessPattern, (state.round || 0) + 1));
+  };
+
+  const startAccumulationRace = () => {
+    stopGame?.();
+    setStopGame(() => runPatternGame(roomId, accumulationRacePattern, (state.round || 0) + 1));
   };
 
   const startLastOneStanding = () => {
     stopGame?.();
     const roster = participants.length > 0 ? participants : [{ userKey: user.uid, displayName: profile?.display_name || "لاعب", role: "host" }];
-    const stop = startLastOneStandingGame(roomId, roster);
-    setStopGame(() => stop);
+    setStopGame(() => startLastOneStandingGame(roomId, roster));
   };
 
   const resetToLobby = async () => {
     stopGame?.();
     setStopGame(null);
-    await writeRoomState(roomId, { gameId: "", phase: "LOBBY", round: 0, votes: {}, remaining: [], winner: null });
+    await writeRoomState(roomId, { gameId: "", phase: "LOBBY", round: 0, players: {}, target: null, winner: null, endsAt: null });
   };
 
   const sendChat = async (e: React.FormEvent) => {
@@ -139,12 +148,8 @@ export default function Room() {
     setMessage("");
   };
 
-  const instruction =
-    state.gameId === GUESS_NUMBER_ID
-      ? GUESS_NUMBER_INSTRUCTION
-      : state.gameId === LAST_ONE_STANDING_ID
-        ? LAST_ONE_STANDING_INSTRUCTION
-        : null;
+  const instruction = INSTRUCTIONS[state.gameId] ?? null;
+  const isTerminalPhase = state.phase === "WINNER" || state.phase === "FINISHED";
 
   return (
     <div className="min-h-screen max-w-2xl mx-auto px-4 py-8 space-y-6">
@@ -164,8 +169,11 @@ export default function Room() {
             <>
               <h2 className="font-display text-lg">اختر لعبة</h2>
               <div className="flex flex-col sm:flex-row gap-3 justify-center">
-                <button onClick={startGuessNumber} className="px-5 py-2.5 rounded-lg bg-primary text-primary-foreground font-bold">
+                <button onClick={startClosestGuess} className="px-5 py-2.5 rounded-lg bg-primary text-primary-foreground font-bold">
                   خمّن الرقم
+                </button>
+                <button onClick={startAccumulationRace} className="px-5 py-2.5 rounded-lg bg-accent text-accent-foreground font-bold">
+                  تسلّق الجبل
                 </button>
                 {!isLive && (
                   <button onClick={startLastOneStanding} className="px-5 py-2.5 rounded-lg bg-secondary font-bold">
@@ -187,26 +195,22 @@ export default function Room() {
 
           {state.phase === "REVEAL" && (
             <div className="space-y-2 pt-2">
-              <p className="text-muted-foreground">الرقم السري: <span className="text-foreground font-bold">{state.secretNumber}</span></p>
-              {state.winner && (
-                <p className="text-accent font-bold">
-                  الفائز: {(state.votes[state.winner] as { displayName?: string })?.displayName ?? prettyName(state.winner)}
-                </p>
-              )}
+              <p className="text-muted-foreground">الرقم السري: <span className="text-foreground font-bold">{state.target}</span></p>
+              {state.winner && <p className="text-accent font-bold">الفائز: {scoreLabel(state.winner)}</p>}
             </div>
           )}
 
           {(state.phase === "ELIMINATE_RANDOM" || state.phase === "CHECK_REMAINING") && (
-            <p className="text-muted-foreground">متبقي {state.remaining.length} — أُقصي: {eliminatedNames[eliminatedNames.length - 1] ?? "—"}</p>
-          )}
-
-          {state.phase === "WINNER" && (
-            <p className="text-accent font-bold text-lg">
-              🏆 الفائز: {scoreLabel(state.winner || "")}
+            <p className="text-muted-foreground">
+              متبقي {Object.values(players).filter((p) => p.alive).length} — أُقصي: {eliminatedNames[eliminatedNames.length - 1] ?? "—"}
             </p>
           )}
 
-          {isHost && state.phase === "WINNER" && (
+          {isTerminalPhase && (
+            <p className="text-accent font-bold text-lg">🏆 الفائز: {scoreLabel(state.winner || "")}</p>
+          )}
+
+          {isHost && isTerminalPhase && (
             <button onClick={resetToLobby} className="px-5 py-2 rounded-lg bg-secondary font-bold">
               لعبة جديدة
             </button>
@@ -234,11 +238,11 @@ export default function Room() {
       )}
 
       <div className="text-center text-xs text-muted-foreground">
-        {Object.keys(state.scores || {}).length > 0 && (
+        {Object.keys(players).length > 0 && (
           <p>
             النقاط:{" "}
-            {Object.entries(state.scores)
-              .map(([uid, score]) => `${scoreLabel(uid)}: ${score}`)
+            {Object.values(players)
+              .map((p) => `${p.nickname}: ${p.score}`)
               .join(" · ")}
           </p>
         )}

@@ -1,15 +1,20 @@
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { subscribeRoomState, EMPTY_ROOM_STATE, type RoomState } from "@/lib/roomState";
-import { subscribeParticipants, type Participant } from "@/lib/rooms";
-import { GUESS_NUMBER_ID, GUESS_NUMBER_INSTRUCTION } from "@/games/guessNumber/engine";
+import { CLOSEST_GUESS_ID, CLOSEST_GUESS_INSTRUCTION } from "@/patterns/closestGuess";
+import { ACCUMULATION_RACE_ID, ACCUMULATION_RACE_INSTRUCTION } from "@/patterns/accumulationRace";
 import { LAST_ONE_STANDING_ID, LAST_ONE_STANDING_INSTRUCTION } from "@/games/lastOneStanding/engine";
+
+const INSTRUCTIONS: Record<string, string> = {
+  [CLOSEST_GUESS_ID]: CLOSEST_GUESS_INSTRUCTION,
+  [ACCUMULATION_RACE_ID]: ACCUMULATION_RACE_INSTRUCTION,
+  [LAST_ONE_STANDING_ID]: LAST_ONE_STANDING_INSTRUCTION,
+};
 
 /** Read-only, transparent-background view for OBS Browser Source capture. No auth. */
 export default function Overlay() {
   const { roomId } = useParams<{ roomId: string }>();
   const [state, setState] = useState<RoomState>(EMPTY_ROOM_STATE);
-  const [participants, setParticipants] = useState<Participant[]>([]);
 
   useEffect(() => {
     // OBS Browser Source only renders true transparency if <body> itself has
@@ -24,20 +29,11 @@ export default function Overlay() {
 
   useEffect(() => {
     if (!roomId) return;
-    const unsubState = subscribeRoomState(roomId, setState);
-    const unsubParticipants = subscribeParticipants(roomId, setParticipants);
-    return () => {
-      unsubState();
-      unsubParticipants();
-    };
+    return subscribeRoomState(roomId, setState);
   }, [roomId]);
 
-  const instruction =
-    state.gameId === GUESS_NUMBER_ID
-      ? GUESS_NUMBER_INSTRUCTION
-      : state.gameId === LAST_ONE_STANDING_ID
-        ? LAST_ONE_STANDING_INSTRUCTION
-        : null;
+  const instruction = INSTRUCTIONS[state.gameId] ?? null;
+  const isTerminalPhase = state.phase === "WINNER" || state.phase === "FINISHED";
 
   return (
     <div className="min-h-screen bg-transparent flex items-center justify-center p-8">
@@ -45,9 +41,9 @@ export default function Overlay() {
         {instruction && state.phase !== "LOBBY" ? (
           <>
             <p className="text-3xl font-display">{instruction}</p>
-            {state.phase === "WINNER" && (
+            {isTerminalPhase && state.winner && (
               <p className="text-2xl font-bold text-yellow-300">
-                🏆 {participants.find((p) => p.userKey === state.winner)?.displayName ?? state.winner}
+                🏆 {state.players[state.winner]?.nickname ?? state.winner}
               </p>
             )}
           </>

@@ -1,49 +1,55 @@
 import { eventBus } from "@/engine/EventBus";
-import { writeRoomState, incrementScore } from "@/lib/roomState";
+import { writeRoomState } from "@/lib/roomState";
 import { incrementXp } from "@/lib/users";
+import type { PlayerState } from "@/engine/GameState";
 
+/**
+ * Pattern 5 — Random Elimination. Unlike the single-round patterns in
+ * src/patterns/*, this one spans multiple rounds with elimination between
+ * them, so it keeps its own bespoke orchestration rather than using
+ * runPatternGame() — but it still writes the same unified `players` shape
+ * (alive: false replaces what used to be a separate `remaining` list).
+ */
 export const LAST_ONE_STANDING_ID = "lastOneStanding";
 export const LAST_ONE_STANDING_INSTRUCTION = "اكتب كلمة 'أنا' للبقاء";
 
 const ROUND_OPEN_MS = 10_000;
 const BETWEEN_ROUNDS_MS = 3_000;
 const SURVIVE_WORD = "أنا";
+const XP_REWARD = 15;
 
 interface Participant {
   userKey: string;
   displayName: string;
 }
 
-/**
- * Host-only controller: LOBBY -> ROUND_OPEN -> ELIMINATE_RANDOM -> CHECK_REMAINING
- * -> loop, or WINNER once one participant remains. Each round eliminates one
- * random participant among those who did NOT reply "أنا" in time; if everyone
- * replied, eliminates one random participant anyway so the game always ends.
- */
 export function startLastOneStandingGame(roomId: string, participants: Participant[]) {
-  let remaining = [...participants];
+  const players: Record<string, PlayerState> = {};
+  for (const p of participants) players[p.userKey] = { nickname: p.displayName, score: 0, alive: true };
+
   let round = 0;
   let stopped = false;
   let activeUnsubscribe: (() => void) | null = null;
   let activeTimer: ReturnType<typeof setTimeout> | null = null;
 
+  const aliveKeys = () => Object.entries(players).filter(([, p]) => p.alive).map(([key]) => key);
+
   async function playRound() {
     if (stopped) return;
     round += 1;
+    const alive = aliveKeys();
 
-    if (remaining.length <= 1) {
-      const winner = remaining[0] ?? null;
+    if (alive.length <= 1) {
+      const winnerKey = alive[0] ?? null;
+      if (winnerKey) players[winnerKey] = { ...players[winnerKey], score: players[winnerKey].score + 1 };
       await writeRoomState(roomId, {
         gameId: LAST_ONE_STANDING_ID,
         phase: "WINNER",
         round,
-        remaining: remaining.map((p) => p.userKey),
-        winner: winner?.userKey ?? null,
+        players: { ...players },
+        winner: winnerKey,
       });
-      if (winner) {
-        await incrementScore(roomId, winner.userKey, 1);
-        await incrementXp(winner.userKey, 15);
-      }
+      if (winnerKey) await incrementXp(winnerKey, XP_REWARD);
       return;
     }
 
@@ -54,7 +60,7 @@ export function startLastOneStandingGame(roomId: string, participants: Participa
       gameId: LAST_ONE_STANDING_ID,
       phase: "ROUND_OPEN",
       round,
-      remaining: remaining.map((p) => p.userKey),
+      players: { ...players },
       endsAt,
       winner: null,
     });
@@ -68,16 +74,13 @@ export function startLastOneStandingGame(roomId: string, participants: Participa
       activeUnsubscribe = null;
       if (stopped) return;
 
-      const nonRepliers = remaining.filter((p) => !repliers.has(p.userKey));
-      const eliminationPool = nonRepliers.length > 0 ? nonRepliers : remaining;
-      const eliminated = eliminationPool[Math.floor(Math.random() * eliminationPool.length)];
-      remaining = remaining.filter((p) => p.userKey !== eliminated.userKey);
+      const currentAlive = aliveKeys();
+      const nonRepliers = currentAlive.filter((key) => !repliers.has(key));
+      const pool = nonRepliers.length > 0 ? nonRepliers : currentAlive;
+      const eliminated = pool[Math.floor(Math.random() * pool.length)];
+      players[eliminated] = { ...players[eliminated], alive: false };
 
-      await writeRoomState(roomId, {
-        phase: "ELIMINATE_RANDOM",
-        round,
-        remaining: remaining.map((p) => p.userKey),
-      });
+      await writeRoomState(roomId, { phase: "ELIMINATE_RANDOM", round, players: { ...players } });
 
       activeTimer = setTimeout(playRound, BETWEEN_ROUNDS_MS);
     }, ROUND_OPEN_MS);
@@ -90,8 +93,4 @@ export function startLastOneStandingGame(roomId: string, participants: Participa
     activeUnsubscribe?.();
     if (activeTimer) clearTimeout(activeTimer);
   };
-}
-
-export function displayNameFor(participants: Participant[], userKey: string): string {
-  return participants.find((p) => p.userKey === userKey)?.displayName ?? userKey;
 }
