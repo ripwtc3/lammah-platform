@@ -1,0 +1,95 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    // ---------- users ----------
+    match /users/{uid} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && request.auth.uid == uid;
+      allow update: if isSignedIn() && request.auth.uid == uid
+        // xp/level only move via increments handled through app logic today;
+        // no server-side validation of increment direction yet (MVP-level trust).
+        ;
+      allow delete: if false;
+    }
+
+    // ---------- usernames (uniqueness lock) ----------
+    match /usernames/{name} {
+      allow read: if true;
+      allow create: if isSignedIn()
+        && request.resource.data.uid == request.auth.uid
+        && !exists(/databases/$(database)/documents/usernames/$(name));
+      allow update, delete: if false;
+    }
+
+    // ---------- rooms ----------
+    match /rooms/{roomId} {
+      allow read: if true; // room code lookup + overlay need public read
+      allow create: if isSignedIn() && request.resource.data.hostUid == request.auth.uid;
+      allow update: if isSignedIn() && resource.data.hostUid == request.auth.uid;
+      allow delete: if false;
+
+      match /participants/{pid} {
+        allow read: if true;
+        allow create, update: if isSignedIn() && request.auth.uid == pid;
+        allow delete: if false;
+      }
+
+      match /messages/{mid} {
+        allow read: if true;
+        allow create: if isSignedIn() && request.resource.data.userKey == request.auth.uid;
+        allow update, delete: if false;
+      }
+
+      match /state/{docId} {
+        allow read: if true; // overlay + spectators
+        allow write: if isSignedIn()
+          && get(/databases/$(database)/documents/rooms/$(roomId)).data.hostUid == request.auth.uid;
+      }
+    }
+
+    // ---------- matches (official matches + referee) ----------
+    match /matches/{matchId} {
+      allow read: if true;
+      allow create: if isSignedIn() && request.resource.data.hostUid == request.auth.uid;
+      allow update: if isSignedIn() && (
+        resource.data.hostUid == request.auth.uid ||
+        resource.data.refereeUid == request.auth.uid ||
+        // one-time referee claim: only allowed while refereeUid is still unset
+        (resource.data.refereeUid == null && request.resource.data.refereeUid == request.auth.uid)
+      );
+      allow delete: if false;
+
+      match /rounds/{roundId} {
+        allow read: if true;
+        allow write: if isSignedIn() && (
+          get(/databases/$(database)/documents/matches/$(matchId)).data.hostUid == request.auth.uid ||
+          get(/databases/$(database)/documents/matches/$(matchId)).data.refereeUid == request.auth.uid
+        );
+      }
+    }
+
+    // ---------- questions (admin-seeded content) ----------
+    match /questions/{id} {
+      allow read: if isSignedIn();
+      allow write: if false; // seeded manually via Firebase Console/admin SDK for MVP
+    }
+
+    // ---------- tiktok_links ----------
+    match /tiktok_links/{uid} {
+      allow read: if isSignedIn();
+      allow write: if isSignedIn() && request.auth.uid == uid;
+    }
+
+    // ---------- subscriptions ----------
+    match /subscriptions/{id} {
+      allow read: if isSignedIn() && resource.data.user_id == request.auth.uid;
+      allow write: if false; // manually provisioned for MVP — no client-side billing
+    }
+  }
+}

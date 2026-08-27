@@ -1,0 +1,39 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html, body, #root { height: 100%; }
+html { scroll-behavior: smooth; }
+
+body {
+  margin: 0;
+  font-family: "IBM Plex Sans Arabic", system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  direction: rtl;
+}
+
+@layer base {
+  :root {
+    --radius: 0.75rem;
+    --background: 258 30% 8%;
+    --foreground: 260 20% 96%;
+    --card: 258 25% 12%;
+    --card-foreground: 260 20% 96%;
+    --primary: 262 83% 66%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 258 20% 18%;
+    --secondary-foreground: 260 20% 96%;
+    --muted: 258 20% 18%;
+    --muted-foreground: 260 10% 65%;
+    --accent: 32 95% 58%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 72% 55%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 258 20% 22%;
+    --ring: 262 83% 66%;
+  }
+  * { border-color: hsl(var(--border)); }
+  body { background-color: hsl(var(--background)); color: hsl(var(--foreground)); }
+}
+
+.font-display { font-weight: 800; letter-spacing: -0.01em; }
