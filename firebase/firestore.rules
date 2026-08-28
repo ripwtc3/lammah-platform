@@ -51,6 +51,15 @@ service cloud.firestore {
         allow write: if isSignedIn()
           && get(/databases/$(database)/documents/rooms/$(roomId)).data.hostUid == request.auth.uid;
       }
+
+      // Per-user private channel (e.g. a gift-earned hint in "مصعد الحظ") —
+      // unlike state/current, this is NOT publicly readable: only the
+      // specific player it belongs to can read their own hint document.
+      match /hints/{uid} {
+        allow read: if isSignedIn() && request.auth.uid == uid;
+        allow write: if isSignedIn()
+          && get(/databases/$(database)/documents/rooms/$(roomId)).data.hostUid == request.auth.uid;
+      }
     }
 
     // ---------- matches (official matches + referee) ----------

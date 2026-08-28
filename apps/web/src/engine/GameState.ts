@@ -22,6 +22,15 @@ export interface GameState {
   winner?: string | null;
   /** Vote tallies keyed by candidate label — only used by poll-style patterns. */
   tally?: Record<string, number> | null;
+  /**
+   * A single cumulative progress value driven by `like` events (e.g. a
+   * collective goal meter). Kept separate from `target` (which patterns use
+   * for a per-round secret/goal value) so a like-driven meter can persist
+   * across rounds independently.
+   */
+  meter?: number | null;
+  /** Room-level outcome for cooperative games with no individual winner (audience vs. an AI/system). */
+  outcome?: "victory" | "defeat" | null;
 }
 
 export const EMPTY_GAME_STATE: GameState = {

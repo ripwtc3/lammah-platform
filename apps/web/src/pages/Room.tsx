@@ -7,6 +7,7 @@ import { startTwitchAdapter } from "@/adapters/twitchAdapter";
 import { startYoutubeAdapter } from "@/adapters/youtubeAdapter";
 import { startTiktokAdapter } from "@/adapters/tiktokAdapter";
 import { subscribeRoomState, writeRoomState, type RoomState, EMPTY_ROOM_STATE } from "@/lib/roomState";
+import { subscribeHint } from "@/lib/hints";
 import { runPatternGame } from "@/engine/patternEngine";
 import { closestGuessPattern, CLOSEST_GUESS_ID, CLOSEST_GUESS_INSTRUCTION } from "@/patterns/closestGuess";
 import { accumulationRacePattern, ACCUMULATION_RACE_ID, ACCUMULATION_RACE_INSTRUCTION } from "@/patterns/accumulationRace";
@@ -19,6 +20,10 @@ import {
   BUTTERFLY_CAGE_ID,
   BUTTERFLY_CAGE_INSTRUCTION,
 } from "@/games/lastOneStanding/engine";
+import { startVaultPulseGame, VAULT_PULSE_ID, VAULT_PULSE_INSTRUCTION } from "@/games/vaultPulse/engine";
+import { startFortuneElevatorGame, FORTUNE_ELEVATOR_ID, FORTUNE_ELEVATOR_INSTRUCTION } from "@/games/fortuneElevator/engine";
+import { startAutoSentinelGame, AUTO_SENTINEL_ID, AUTO_SENTINEL_INSTRUCTION } from "@/games/autoSentinel/engine";
+import { startLastFogGame, LAST_FOG_ID, LAST_FOG_INSTRUCTION } from "@/games/lastFog/engine";
 
 const STATUS_LABELS: Record<string, string> = {
   connecting: "جاري الاتصال...",
@@ -35,9 +40,17 @@ const INSTRUCTIONS: Record<string, string> = {
   [AUDIENCE_POLL_ID]: AUDIENCE_POLL_INSTRUCTION,
   [LAST_ONE_STANDING_ID]: LAST_ONE_STANDING_INSTRUCTION,
   [BUTTERFLY_CAGE_ID]: BUTTERFLY_CAGE_INSTRUCTION,
+  [VAULT_PULSE_ID]: VAULT_PULSE_INSTRUCTION,
+  [FORTUNE_ELEVATOR_ID]: FORTUNE_ELEVATOR_INSTRUCTION,
+  [AUTO_SENTINEL_ID]: AUTO_SENTINEL_INSTRUCTION,
+  [LAST_FOG_ID]: LAST_FOG_INSTRUCTION,
 };
 
-const ELIMINATION_GAME_IDS = new Set([LAST_ONE_STANDING_ID, BUTTERFLY_CAGE_ID]);
+// Games that eliminate players via the `alive` flag — used to render a
+// generic "remaining / just eliminated" line without each game re-deriving it.
+const ELIMINATION_GAME_IDS = new Set([LAST_ONE_STANDING_ID, BUTTERFLY_CAGE_ID, VAULT_PULSE_ID, FORTUNE_ELEVATOR_ID, LAST_FOG_ID]);
+const POST_ROUND_PHASES = new Set(["ELIMINATE_RANDOM", "CHECK_REMAINING", "RESOLVING", "REVEAL_FLOOR", "REVEAL_ROUND"]);
+const METER_GAME_IDS = new Set([VAULT_PULSE_ID, FORTUNE_ELEVATOR_ID, AUTO_SENTINEL_ID, LAST_FOG_ID]);
 
 function prettyName(userKey: string): string {
   const parts = userKey.split(":");
@@ -68,6 +81,7 @@ export default function Room() {
   const [message, setMessage] = useState("");
   const [stopGame, setStopGame] = useState<(() => void) | null>(null);
   const [liveStatus, setLiveStatus] = useState<string>("connecting");
+  const [myHint, setMyHint] = useState<string | null>(null);
 
   const isHost = room?.hostUid === user?.uid;
   const isLive = room?.mode === "live";
@@ -118,6 +132,14 @@ export default function Room() {
     return undefined;
   }, [roomId, room]);
 
+  // Only "مصعد الحظ" ever writes a hint, but subscribing unconditionally is
+  // harmless (the doc simply never exists in other games) and avoids
+  // resubscribing every time the game changes.
+  useEffect(() => {
+    if (!roomId || !user) return;
+    return subscribeHint(roomId, user.uid, setMyHint);
+  }, [roomId, user]);
+
   const players = state.players || {};
   const eliminatedNames = useMemo(() => {
     if (!ELIMINATION_GAME_IDS.has(state.gameId)) return [];
@@ -131,6 +153,9 @@ export default function Room() {
 
   if (!roomId || !user) return null;
 
+  const rosterOrSelf = () =>
+    participants.length > 0 ? participants : [{ userKey: user.uid, displayName: profile?.display_name || "لاعب", role: "host" }];
+
   const startClosestGuess = () => {
     stopGame?.();
     setStopGame(() => runPatternGame(roomId, closestGuessPattern, (state.round || 0) + 1));
@@ -141,9 +166,6 @@ export default function Room() {
     setStopGame(() => runPatternGame(roomId, accumulationRacePattern, (state.round || 0) + 1));
   };
 
-  const rosterOrSelf = () =>
-    participants.length > 0 ? participants : [{ userKey: user.uid, displayName: profile?.display_name || "لاعب", role: "host" }];
-
   const startLastOneStanding = () => {
     stopGame?.();
     setStopGame(() => startLastOneStandingGame(roomId, rosterOrSelf()));
@@ -152,6 +174,26 @@ export default function Room() {
   const startButterflyCage = () => {
     stopGame?.();
     setStopGame(() => startButterflyCageGame(roomId, rosterOrSelf()));
+  };
+
+  const startVaultPulse = () => {
+    stopGame?.();
+    setStopGame(() => startVaultPulseGame(roomId, rosterOrSelf()));
+  };
+
+  const startFortuneElevator = () => {
+    stopGame?.();
+    setStopGame(() => startFortuneElevatorGame(roomId, rosterOrSelf()));
+  };
+
+  const startAutoSentinel = () => {
+    stopGame?.();
+    setStopGame(() => startAutoSentinelGame(roomId, rosterOrSelf()));
+  };
+
+  const startLastFog = () => {
+    stopGame?.();
+    setStopGame(() => startLastFogGame(roomId, rosterOrSelf()));
   };
 
   const startAudiencePoll = () => {
@@ -169,7 +211,18 @@ export default function Room() {
   const resetToLobby = async () => {
     stopGame?.();
     setStopGame(null);
-    await writeRoomState(roomId, { gameId: "", phase: "LOBBY", round: 0, players: {}, target: null, winner: null, endsAt: null });
+    await writeRoomState(roomId, {
+      gameId: "",
+      phase: "LOBBY",
+      round: 0,
+      players: {},
+      target: null,
+      winner: null,
+      endsAt: null,
+      meter: null,
+      outcome: null,
+      tally: null,
+    });
   };
 
   const sendChat = async (e: React.FormEvent) => {
@@ -180,6 +233,7 @@ export default function Room() {
   };
 
   const instruction = INSTRUCTIONS[state.gameId] ?? null;
+  const isCooperative = state.gameId === AUTO_SENTINEL_ID;
   const isTerminalPhase = state.phase === "WINNER" || state.phase === "FINISHED" || state.phase === "RESULT";
 
   return (
@@ -209,6 +263,12 @@ export default function Room() {
                 <button onClick={startAudiencePoll} className="btn-glow btn-glow-success px-5 py-2.5 rounded-lg">
                   تصويت الجمهور
                 </button>
+                <button onClick={startVaultPulse} className="btn-glow btn-glow-primary px-5 py-2.5 rounded-lg">
+                  نبض القبو
+                </button>
+                <button onClick={startAutoSentinel} className="btn-glow btn-glow-accent px-5 py-2.5 rounded-lg">
+                  الحارس الآلي 🤖
+                </button>
                 {!isLive && (
                   <>
                     <button onClick={startLastOneStanding} className="btn-glow btn-glow-live px-5 py-2.5 rounded-lg">
@@ -216,6 +276,12 @@ export default function Room() {
                     </button>
                     <button onClick={startButterflyCage} className="btn-glow btn-glow-live px-5 py-2.5 rounded-lg">
                       قفص الفراشات 🦋
+                    </button>
+                    <button onClick={startFortuneElevator} className="btn-glow btn-glow-success px-5 py-2.5 rounded-lg">
+                      مصعد الحظ 🎰
+                    </button>
+                    <button onClick={startLastFog} className="btn-glow btn-glow-live px-5 py-2.5 rounded-lg">
+                      الضباب الأخير 🌫️
                     </button>
                   </>
                 )}
@@ -234,7 +300,15 @@ export default function Room() {
             <p className={`text-3xl font-display text-primary ${secondsLeft <= 5 ? "text-destructive" : ""}`}>{secondsLeft}</p>
           )}
 
-          {state.phase === "REVEAL" && (
+          {METER_GAME_IDS.has(state.gameId) && typeof state.meter === "number" && (
+            <p className="text-xs text-muted-foreground">📈 طاقة الجمهور: {state.meter}</p>
+          )}
+
+          {myHint && (
+            <p className="text-accent font-bold bg-accent/10 rounded-lg px-3 py-2 inline-block">🎁 تلميحك الخاص: {myHint}</p>
+          )}
+
+          {state.gameId === CLOSEST_GUESS_ID && state.phase === "REVEAL" && (
             <div className="space-y-2 pt-2">
               <p className="text-muted-foreground">الرقم السري: <span className="text-foreground font-bold">{state.target}</span></p>
               {state.winner && <p className="text-accent font-bold">الفائز: {scoreLabel(state.winner)}</p>}
@@ -253,13 +327,47 @@ export default function Room() {
             </div>
           )}
 
-          {(state.phase === "ELIMINATE_RANDOM" || state.phase === "CHECK_REMAINING") && (
+          {state.gameId === VAULT_PULSE_ID && state.phase === "RESOLVING" && (
+            <p className="text-destructive font-bold">🚨 ممر الإنذار: {state.target}</p>
+          )}
+
+          {state.gameId === FORTUNE_ELEVATOR_ID && state.phase === "REVEAL_FLOOR" && (
+            <p className="text-accent font-bold">الباب الآمن كان: {state.target}</p>
+          )}
+
+          {state.gameId === AUTO_SENTINEL_ID && (
+            <div className="space-y-2 pt-2">
+              <p className="text-muted-foreground">🛡️ صحة الدرع: <span className="text-foreground font-bold">{state.target}</span></p>
+              {state.phase === "HIT" && <p className="text-accent font-bold">🎯 إصابة!</p>}
+              {state.phase === "MISS" && <p className="text-destructive font-bold">🛡️ صدّه الحارس!</p>}
+              {state.tally && (
+                <div className="flex justify-center gap-3 text-xs text-muted-foreground">
+                  {Object.entries(state.tally)
+                    .sort(([a], [b]) => Number(a) - Number(b))
+                    .map(([port, count]) => (
+                      <span key={port}>منفذ {port}: {count}</span>
+                    ))}
+                </div>
+              )}
+              {state.phase === "FINISHED" && (
+                <p className={`font-bold text-lg ${state.outcome === "victory" ? "text-accent" : "text-destructive"}`}>
+                  {state.outcome === "victory" ? "🎉 انتصر الجمهور على الحارس!" : "💥 صمد الحارس الآلي — حاولوا مرة ثانية"}
+                </p>
+              )}
+            </div>
+          )}
+
+          {state.gameId === LAST_FOG_ID && state.target && !isTerminalPhase && (
+            <p className="text-muted-foreground">🔦 الصياد هذي الجولة: <span className="text-foreground font-bold">{scoreLabel(String(state.target))}</span></p>
+          )}
+
+          {POST_ROUND_PHASES.has(state.phase) && ELIMINATION_GAME_IDS.has(state.gameId) && (
             <p className="text-muted-foreground">
               متبقي {Object.values(players).filter((p) => p.alive).length} — أُقصي: {eliminatedNames[eliminatedNames.length - 1] ?? "—"}
             </p>
           )}
 
-          {isTerminalPhase && (
+          {isTerminalPhase && !isCooperative && (
             <p className="text-accent font-bold text-lg pulse-ring inline-block rounded-full px-4 py-1">
               🏆 الفائز: {scoreLabel(state.winner || "")}
             </p>

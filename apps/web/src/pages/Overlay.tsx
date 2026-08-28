@@ -10,6 +10,10 @@ import {
   BUTTERFLY_CAGE_ID,
   BUTTERFLY_CAGE_INSTRUCTION,
 } from "@/games/lastOneStanding/engine";
+import { VAULT_PULSE_ID, VAULT_PULSE_INSTRUCTION } from "@/games/vaultPulse/engine";
+import { FORTUNE_ELEVATOR_ID, FORTUNE_ELEVATOR_INSTRUCTION } from "@/games/fortuneElevator/engine";
+import { AUTO_SENTINEL_ID, AUTO_SENTINEL_INSTRUCTION } from "@/games/autoSentinel/engine";
+import { LAST_FOG_ID, LAST_FOG_INSTRUCTION } from "@/games/lastFog/engine";
 
 const INSTRUCTIONS: Record<string, string> = {
   [CLOSEST_GUESS_ID]: CLOSEST_GUESS_INSTRUCTION,
@@ -17,6 +21,10 @@ const INSTRUCTIONS: Record<string, string> = {
   [AUDIENCE_POLL_ID]: AUDIENCE_POLL_INSTRUCTION,
   [LAST_ONE_STANDING_ID]: LAST_ONE_STANDING_INSTRUCTION,
   [BUTTERFLY_CAGE_ID]: BUTTERFLY_CAGE_INSTRUCTION,
+  [VAULT_PULSE_ID]: VAULT_PULSE_INSTRUCTION,
+  [FORTUNE_ELEVATOR_ID]: FORTUNE_ELEVATOR_INSTRUCTION,
+  [AUTO_SENTINEL_ID]: AUTO_SENTINEL_INSTRUCTION,
+  [LAST_FOG_ID]: LAST_FOG_INSTRUCTION,
 };
 
 /** Read-only, transparent-background view for OBS Browser Source capture. No auth. */
